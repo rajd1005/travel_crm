@@ -196,3 +196,22 @@ class SystemConfig(Base):
     global_pg_percent = Column(Numeric(5, 2), default=2.00)
     company_banner_url = Column(Text, nullable=True)
     head_office_address = Column(Text, nullable=True)
+
+from sqlalchemy import inspect
+
+def tcc_ensure_database_guards(engine):
+    """
+    Ensures safe automatic system structural evolution.
+    Checks and migrates critical structures at container boot.
+    """
+    inspector = inspect(engine)
+    
+    # Auto-migration guard for room_types column
+    if 'hotel_rates' in inspector.get_table_names():
+        columns = [c['name'] for c in inspector.get_columns('hotel_rates')]
+        if 'room_types' not in columns:
+            with engine.begin() as conn:
+                conn.execute("ALTER TABLE hotel_rates ADD COLUMN room_types JSONB NOT NULL DEFAULT '[]';")
+                
+    # Initialize all declared tables missing from structural targets
+    Base.metadata.create_all(bind=engine)
