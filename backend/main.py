@@ -22,15 +22,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Database Dependency Mock ---
-# In production, this yields the actual database session
+from database import SessionLocal, init_db
+
+# FastAPI startup event handler
+@app.on_event("startup")
+def on_startup():
+    # Runs your custom DB guards and ensures tables are ready
+    init_db()
+
+# Update your get_db() dependency to use the real database session
 def get_db():
-    # db = SessionLocal()
-    # try:
-    #     yield db
-    # finally:
-    #     db.close()
-    pass
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 # --- Security: API Key Authentication Bridge ---
 # You will store this securely in your SystemConfig table or .env file
